@@ -1,1 +1,351 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#087f5b">
+<title>DEV MEDICAL STORE</title>
 
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f2f5f7;
+  color:#222;
+}
+header{
+  background:#087f5b;
+  color:white;
+  padding:20px 15px;
+}
+header h2{margin:0 0 6px}
+header p{margin:0;font-size:14px}
+main{padding:15px;padding-bottom:85px}
+h3{margin-top:22px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.card{
+  background:white;
+  padding:16px 12px;
+  border-radius:12px;
+  box-shadow:0 2px 7px #00000012;
+  min-width:0;
+}
+.card strong{font-size:20px;display:block;margin-bottom:8px}
+.card span{font-size:14px;color:#555}
+button{
+  border:0;
+  background:#087f5b;
+  color:white;
+  padding:12px;
+  border-radius:8px;
+  font-size:15px;
+  cursor:pointer;
+}
+input,select{
+  display:block;
+  width:100%;
+  padding:12px;
+  margin:10px 0;
+  border:1px solid #ccc;
+  border-radius:7px;
+  background:white;
+  font-size:16px;
+}
+.section{display:none}
+.section.active{display:block}
+.nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:white;
+  display:flex;
+  justify-content:space-around;
+  padding:10px 0;
+  box-shadow:0 -2px 8px #00000015;
+}
+.nav button{
+  background:white;
+  color:#444;
+  padding:8px 5px;
+  font-size:12px;
+}
+.nav button.active{color:#087f5b;font-weight:bold}
+.item{
+  background:white;
+  padding:12px;
+  border-radius:8px;
+  margin:10px 0;
+  overflow-wrap:anywhere;
+}
+.small{font-size:13px;color:#666}
+.danger{color:#c62828}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h2>DEV MEDICAL STORE</h2>
+  <p>Pharmacy Management System</p>
+  <p id="today"></p>
+</header>
+
+<main>
+
+<section id="home" class="section active">
+  <h3>🏠 Dashboard</h3>
+
+  <div class="grid">
+    <div class="card">
+      <strong id="stockCount">0</strong>
+      <span>Medicine Items</span>
+    </div>
+    <div class="card">
+      <strong id="stockValue">₹0.00</strong>
+      <span>Stock Value (Purchase)</span>
+    </div>
+    <div class="card">
+      <strong id="salesToday">₹0.00</strong>
+      <span>Today's Sales</span>
+    </div>
+    <div class="card">
+      <strong id="expiryCount">0</strong>
+      <span>Expired Medicines</span>
+    </div>
+  </div>
+
+  <h3>Quick Actions</h3>
+  <div class="grid">
+    <button onclick="showSection('stock')">💊 Add Medicine</button>
+    <button onclick="showSection('sales')">🧾 New Sale</button>
+    <button onclick="showSection('purchase')">🛒 Purchase</button>
+    <button onclick="showSection('backup')">💾 Backup Data</button>
+  </div>
+
+  <p class="small">
+    डेटा इस ब्राउज़र के स्थानीय स्टोरेज में सेव होगा।
+    नियमित बैकअप लेना जरूरी है।
+  </p>
+</section>
+
+<section id="stock" class="section">
+  <h3>💊 Medicine Stock</h3>
+
+  <input id="medName" placeholder="Medicine Name *">
+  <input id="medCompany" placeholder="Company Name">
+  <input id="medBatch" placeholder="Batch Number">
+  <input id="medExpiry" type="date" aria-label="Expiry Date">
+  <input id="medQty" type="number" min="0" placeholder="Quantity">
+  <input id="medPurchase" type="number" min="0" step="0.01" placeholder="Purchase Price">
+  <input id="medMrp" type="number" min="0" step="0.01" placeholder="MRP">
+
+  <button onclick="addMedicine()">Save Medicine</button>
+
+  <h3>Saved Medicines</h3>
+  <div id="medicineList"></div>
+</section>
+
+<section id="purchase" class="section">
+  <h3>🛒 Purchase</h3>
+  <p>अगले चरण में Purchase Bill और Supplier Ledger जोड़ा जाएगा।</p>
+  <button onclick="showSection('stock')">Add Purchased Medicines</button>
+</section>
+
+<section id="sales" class="section">
+  <h3>🧾 Sales & Billing</h3>
+  <p>अगले चरण में Billing, Payment और Automatic Stock Deduction जोड़ा जाएगा।</p>
+  <button onclick="showSection('stock')">View Medicine Stock</button>
+</section>
+
+<section id="backup" class="section">
+  <h3>💾 Backup & Restore</h3>
+  <p>Backup फाइल बनाकर सुरक्षित रखें। दूसरे चरण में डेटा Export और Restore की सुविधा जोड़ेंगे।</p>
+</section>
+
+</main>
+
+<nav class="nav">
+  <button class="active" onclick="showSection('home',this)">🏠<br>Home</button>
+  <button onclick="showSection('purchase',this)">🛒<br>Purchase</button>
+  <button onclick="showSection('stock',this)">💊<br>Stock</button>
+  <button onclick="showSection('sales',this)">🧾<br>Sales</button>
+  <button onclick="showSection('backup',this)">💾<br>Backup</button>
+</nav>
+
+<script>
+const DB_KEY = "devMedicalPharmacy_v1";
+
+let data = {medicines:[],sales:[]};
+
+function loadData(){
+  try{
+    const saved = localStorage.getItem(DB_KEY);
+    if(saved){
+      const parsed = JSON.parse(saved);
+      if(parsed && Array.isArray(parsed.medicines) && Array.isArray(parsed.sales)){
+        data = parsed;
+      }
+    }
+  }catch(e){
+    alert("डेटा पढ़ने में समस्या हुई। कृपया डेटा साफ न करें।");
+  }
+}
+
+function saveData(){
+  try{
+    localStorage.setItem(DB_KEY,JSON.stringify(data));
+    render();
+    return true;
+  }catch(e){
+    alert("डेटा सेव नहीं हो सका। जगह या ब्राउज़र सेटिंग जाँचें।");
+    return false;
+  }
+}
+
+function money(n){
+  return Number(n||0).toLocaleString("en-IN",{
+    style:"currency",currency:"INR"
+  });
+}
+
+function addMedicine(){
+  const name=document.getElementById("medName").value.trim();
+  const qty=Number(document.getElementById("medQty").value);
+  const purchase=Number(document.getElementById("medPurchase").value);
+  const mrp=Number(document.getElementById("medMrp").value);
+
+  if(!name){
+    alert("Medicine Name भरें।");
+    return;
+  }
+
+  if(document.getElementById("medQty").value==="" || qty<0 ||
+     !Number.isFinite(qty) || !Number.isInteger(qty)){
+    alert("Quantity सही भरें।");
+    return;
+  }
+
+  if(document.getElementById("medPurchase").value==="" ||
+     purchase<0 || !Number.isFinite(purchase)){
+    alert("Purchase Price सही भरें।");
+    return;
+  }
+
+  if(document.getElementById("medMrp").value==="" ||
+     mrp<0 || !Number.isFinite(mrp)){
+    alert("MRP सही भरें।");
+    return;
+  }
+
+  data.medicines.push({
+    id:Date.now().toString()+"-"+Math.random().toString(36).slice(2,7),
+    name,
+    company:document.getElementById("medCompany").value.trim(),
+    batch:document.getElementById("medBatch").value.trim(),
+    expiry:document.getElementById("medExpiry").value,
+    qty,
+    purchase,
+    mrp
+  });
+
+  if(!saveData()) return;
+
+  ["medName","medCompany","medBatch","medExpiry",
+   "medQty","medPurchase","medMrp"].forEach(id=>{
+    document.getElementById(id).value="";
+  });
+
+  alert("Medicine सेव हो गई।");
+}
+
+function render(){
+  const medicines=data.medicines;
+  document.getElementById("stockCount").textContent=medicines.length;
+
+  const value=medicines.reduce((sum,m)=>sum+m.qty*m.purchase,0);
+  document.getElementById("stockValue").textContent=money(value);
+
+  const today=new Date().toISOString().slice(0,10);
+  const todaySales=data.sales
+    .filter(s=>s.date===today)
+    .reduce((sum,s)=>sum+s.total,0);
+  document.getElementById("salesToday").textContent=money(todaySales);
+
+  document.getElementById("expiryCount").textContent=
+    medicines.filter(m=>m.expiry && m.expiry<today && m.qty>0).length;
+
+  const list=document.getElementById("medicineList");
+
+  if(medicines.length===0){
+    list.innerHTML="<p>अभी कोई दवा सेव नहीं है।</p>";
+    return;
+  }
+
+  list.replaceChildren();
+
+  medicines.forEach(m=>{
+    const div=document.createElement("div");
+    div.className="item";
+
+    const title=document.createElement("strong");
+    title.textContent=m.name;
+
+    const details=document.createElement("p");
+    details.textContent=
+      "Company: "+(m.company||"-")+
+      " | Batch: "+(m.batch||"-");
+
+    const qty=document.createElement("p");
+    qty.textContent="Quantity: "+m.qty+
+      " | Purchase: "+money(m.purchase)+
+      " | MRP: "+money(m.mrp);
+
+    const expiry=document.createElement("p");
+    expiry.textContent="Expiry: "+(m.expiry||"Not entered");
+
+    if(m.expiry && m.expiry<today){
+      expiry.className="danger";
+    }
+
+    div.append(title,details,qty,expiry);
+    list.appendChild(div);
+  });
+}
+
+function showSection(id,button){
+  document.querySelectorAll(".section").forEach(s=>{
+    s.classList.remove("active");
+  });
+
+  document.getElementById(id).classList.add("active");
+
+  document.querySelectorAll(".nav button").forEach(b=>{
+    b.classList.remove("active");
+  });
+
+  if(button){
+    button.classList.add("active");
+  }else{
+    const navButtons=[...document.querySelectorAll(".nav button")];
+    const index={home:0,purchase:1,stock:2,sales:3,backup:4}[id];
+    if(index!==undefined) navButtons[index].classList.add("active");
+  }
+}
+
+document.getElementById("today").textContent=
+  new Date().toLocaleDateString("en-IN",{
+    weekday:"long",year:"numeric",month:"long",day:"numeric"
+  });
+
+loadData();
+render();
+</script>
+
+</body>
+</html>
